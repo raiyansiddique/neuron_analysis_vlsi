@@ -4,7 +4,7 @@ import numpy as np
 
 
 def analyze_and_plot(file_path):
-    with open(file_path, "r") as file:
+    with open(file_path, "r",  encoding='unicode_escape') as file:
         lines = file.readlines()
         data = []
         for line in lines:
