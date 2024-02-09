@@ -93,29 +93,33 @@ def analyze_and_plot(file_path):
     times.append(current_times)
     powers.append(sum(current_powers))
 
+    average_powers = [np.mean(power) for power in powers]
+
     freqs = []
     for i in range(len(vouts)):
         freqs.append(get_spike_frequency(times[i], vouts[i]))
 
-    print(freqs)
+    joules_per_spike = [
+        average_power / freq for average_power, freq in zip(average_powers, freqs)
+    ]
 
     fig = plt.figure()
 
     ax = fig.add_subplot(111, projection="3d")
 
-    norm = plt.Normalize(min(powers), max(powers))
-    colors = plt.cm.viridis(norm(powers))
+    norm = plt.Normalize(min(joules_per_spike), max(joules_per_spike))
+    colors = plt.cm.viridis(norm(joules_per_spike))
 
-    ax.scatter(isyns, caps, freqs, c=colors, marker="o")
+    ax.scatter(isyns, caps, joules_per_spike, marker="o")
 
-    ax.set_xlabel("Synaptic Current (uA)")
-    ax.set_ylabel("Capacitance (fF)")
-    ax.set_zlabel("Spiking Frequency (kHz)")
+    ax.set_xlabel("Synaptic Current (A)")
+    ax.set_ylabel("Capacitance (F)")
+    ax.set_zlabel("Joules per Spike (J)")
 
-    ax.set_title("Neuron Frequency Response")
+    ax.set_title("Neuron Power Consumption")
 
-    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="viridis"), ax=ax)
-    cbar.set_label("Power Consumption (Watts)")
+    # cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="viridis"), ax=ax)
+    # cbar.set_label("Power Consumption (Watts)")
 
     plt.show()
 
@@ -139,7 +143,7 @@ def get_spike_frequency(time, vout):
         end_time = 0
 
     try:
-        return (spike_count / (end_time - start_time)) / 1000
+        return spike_count / (end_time - start_time)
     except ZeroDivisionError:
         return 0
 
