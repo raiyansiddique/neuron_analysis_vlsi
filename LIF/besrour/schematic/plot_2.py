@@ -71,7 +71,7 @@ def analyze_and_plot(file_path):
             if len(current_powers) == 0:
                 current_powers = []
             else:
-                powers.append(sum(current_powers))
+                powers.append(current_powers)
                 current_powers = []
 
             continue
@@ -91,17 +91,47 @@ def analyze_and_plot(file_path):
 
     vouts.append(current_vouts)
     times.append(current_times)
-    powers.append(sum(current_powers))
+    powers.append(current_powers)
 
-    average_powers = [np.mean(power) for power in powers]
+    spiking_time_interval_indicies = []
 
     freqs = []
     for i in range(len(vouts)):
-        freqs.append(get_spike_frequency(times[i], vouts[i]))
+        spiking_frequency, spiking_time_interval_index = get_spike_frequency(
+            times[i], vouts[i]
+        )
+        freqs.append(spiking_frequency)
+        spiking_time_interval_indicies.append(spiking_time_interval_index)
 
-    joules_per_spike = [
-        average_power / freq for average_power, freq in zip(average_powers, freqs)
-    ]
+    average_powers = []
+    for i, power in enumerate(powers):
+        print(power)
+        average_powers.append(
+            np.mean(
+                power[
+                    spiking_time_interval_indicies[i][
+                        0
+                    ] : spiking_time_interval_indicies[i][1]
+                ]
+            )
+        )
+
+    joules_per_spike = get_energy_per_spike(average_powers, freqs)
+
+    # fig = plt.figure()
+
+    # ax = fig.add_subplot(111, projection="3d")
+
+    # norm = plt.Normalize(min(joules_per_spike), max(joules_per_spike))
+    # colors = plt.cm.viridis(norm(joules_per_spike))
+
+    # ax.scatter(isyns, caps, joules_per_spike, marker="o")
+
+    # ax.set_xlabel("Synaptic Current (A)")
+    # ax.set_ylabel("Capacitance (F)")
+    # ax.set_zlabel("Joules per Spike (J)")
+
+    # ax.set_title("Neuron Power Consumption")
 
     fig = plt.figure()
 
@@ -110,16 +140,16 @@ def analyze_and_plot(file_path):
     norm = plt.Normalize(min(joules_per_spike), max(joules_per_spike))
     colors = plt.cm.viridis(norm(joules_per_spike))
 
-    ax.scatter(isyns, caps, joules_per_spike, marker="o")
+    ax.scatter(isyns, caps, freqs, c=colors, marker="o")
 
     ax.set_xlabel("Synaptic Current (A)")
     ax.set_ylabel("Capacitance (F)")
-    ax.set_zlabel("Joules per Spike (J)")
+    ax.set_zlabel("Spiking Frequency (kHz)")
 
-    ax.set_title("Neuron Power Consumption")
+    ax.set_title("Neuron Frequency Response")
 
-    # cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="viridis"), ax=ax)
-    # cbar.set_label("Power Consumption (Watts)")
+    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="viridis"), ax=ax)
+    cbar.set_label("Joules per Spike (J)")
 
     plt.show()
 
@@ -130,12 +160,17 @@ def get_spike_frequency(time, vout):
 
     start_time = -1
     end_time = -1
+
+    start_time_index = 0
+    end_time_index = -1
     for i in range(1, len(vout)):
         if vout[i] > threshold and vout[i - 1] <= threshold:
             spike_count += 1
             if start_time == -1:
                 start_time = time[i]
+                start_time_index = i
             end_time = time[i]
+            end_time_index = i
 
     if start_time == -1:
         start_time = 0
@@ -143,10 +178,22 @@ def get_spike_frequency(time, vout):
         end_time = 0
 
     try:
-        return spike_count / (end_time - start_time)
+        return spike_count / (end_time - start_time), [start_time_index, end_time_index]
     except ZeroDivisionError:
-        return 0
+        return 0, [0, -1]
 
 
-file_path = "neuron_1.txt"
+def get_energy_per_spike(average_powers, freqs):
+    joules_per_spike = []
+
+    for average_power, freq in zip(average_powers, freqs):
+        if freq == 0:
+            joules_per_spike.append(0)
+            continue
+        joules_per_spike.append(average_power / freq)
+
+    return joules_per_spike
+
+
+file_path = "neuron.txt"
 analyze_and_plot(file_path)
