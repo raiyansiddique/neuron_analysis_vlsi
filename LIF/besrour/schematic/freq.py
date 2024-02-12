@@ -59,8 +59,3 @@ def analyze_and_plot(file_path):
 # Replace 'path_to_your_file.txt' with the path to your file
 file_path = 'neuron.txt'
 analyze_and_plot(file_path)
-
-
-Sweep capacitors:
-Step Current 0 100u 110u
-Tran 1u
