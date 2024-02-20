@@ -13,6 +13,7 @@ def analyze_and_plot(file_path):
 
     caps = []
     isyns = []
+    vdds = []
 
     vouts = []
     current_vouts = []
@@ -56,6 +57,21 @@ def analyze_and_plot(file_path):
 
             isyns.append(isyn_val)
 
+            vdd_str = line.split()[4]
+            vdd_val = float("".join(filter(str.isdigit, vdd_str)))
+            if vdd_str[-1] == "f":
+                vdd_val = vdd_val * 1e-15
+            elif vdd_str[-1] == "p":
+                vdd_val = vdd_val * 1e-12
+            elif vdd_str[-1] == "n":
+                vdd_val = vdd_val * 1e-9
+            elif vdd_str[-1] == "�":
+                vdd_val = vdd_val * 1e-6
+            elif vdd_str[-1] == "m":
+                vdd_val = vdd_val * 1e-3
+
+            vdds.append(vdd_val)
+
             if len(current_vouts) == 0:
                 current_vouts = []
             else:
@@ -89,6 +105,8 @@ def analyze_and_plot(file_path):
             except:
                 pass
 
+    ########### DO WHATEVER WITH vdds ###########
+
     vouts.append(current_vouts)
     times.append(current_times)
     powers.append(current_powers)
@@ -105,7 +123,6 @@ def analyze_and_plot(file_path):
 
     average_powers = []
     for i, power in enumerate(powers):
-        print(power)
         average_powers.append(
             np.mean(
                 power[
@@ -117,22 +134,6 @@ def analyze_and_plot(file_path):
         )
 
     joules_per_spike = get_energy_per_spike(average_powers, freqs)
-
-    # fig = plt.figure()
-
-    # ax = fig.add_subplot(111, projection="3d")
-
-    # norm = plt.Normalize(min(joules_per_spike), max(joules_per_spike))
-    # colors = plt.cm.viridis(norm(joules_per_spike))
-
-    # ax.scatter(isyns, caps, joules_per_spike, marker="o")
-
-    # ax.set_xlabel("Synaptic Current (A)")
-    # ax.set_ylabel("Capacitance (F)")
-    # ax.set_zlabel("Joules per Spike (J)")
-
-    # ax.set_title("Neuron Power Consumption")
-
     fig = plt.figure()
 
     ax = fig.add_subplot(111, projection="3d")
@@ -195,5 +196,5 @@ def get_energy_per_spike(average_powers, freqs):
     return joules_per_spike
 
 
-file_path = "neuron.txt"
+file_path = "VDD_EXAMPLE_DATA.txt"
 analyze_and_plot(file_path)
