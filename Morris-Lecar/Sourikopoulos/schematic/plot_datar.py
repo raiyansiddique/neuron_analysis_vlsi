@@ -82,14 +82,20 @@ def parse_value(s):
             "f": 1e-15,
             "p": 1e-12,
             "n": 1e-9,
-            "�": 1e-6,
             "µ": 1e-6,
+            "�": 1e-6,
             "m": 1e-3,
             "k": 1e3,
         }
         number_part = "".join(filter(str.isnumeric, s)) or "0"
-        number_part = number_part[0:-1] + "." + number_part[-1]
+        # print(s)
+        # print(number_part)
+        if "." == s[-3]:
+            number_part = number_part[0:-1] + "." + number_part[-1]
+        else:
+            number_part = number_part[0:-2] + "." + number_part[-2:]
         unit = s[-1]
+        # print(float(number_part) * multiplier.get(unit, 1))
         return float(number_part) * multiplier.get(unit, 1)
     multiplier = {
         "f": 1e-15,
@@ -257,9 +263,10 @@ def plot_data(caps, isyns, vdds, freqs, joules_per_spike):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
-        print("Energy Per Spike:")
-        print(filtered_data["EnergyPerSpike"].max())
-        energy = int(input("Divisor: "))
+        # print("Energy Per Spike:")
+        # print(filtered_data["EnergyPerSpike"].max())
+        # energy = int(input("Divisor: "))
+        energy = 1
 
         print("+++++")
         print(filtered_data["EnergyPerSpike"].max())
@@ -313,5 +320,5 @@ def plot_data(caps, isyns, vdds, freqs, joules_per_spike):
 
 
 # file_path = "50f_10u.txt"
-file_path = "neuron_22.txt"
+file_path = "sourikopoulos.txt"
 analyze_and_plot(file_path)

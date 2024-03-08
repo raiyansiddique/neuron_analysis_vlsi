@@ -11,7 +11,7 @@ def analyze_and_plot(file_path):
     caps, isyns, vdds, freqs, joules_per_spike = [], [], [], [], []
     current_vouts, current_times, current_powers = [], [], []
 
-    with open(file_path, "r") as file:
+    with open(file_path, "r", encoding="unicode_escape") as file:
         for line in file:
             if line.startswith("#") or line.strip() == "":
                 continue
@@ -48,8 +48,8 @@ def analyze_and_plot(file_path):
 
 def process_step_information(line):
     parts = line.split()
-    cap_val = parse_value(parts[2])
-    isyn_val = parse_value(parts[3])
+    cap_val = parse_value(parts[3])
+    isyn_val = parse_value(parts[2])
     vdd_val = parse_value(parts[4])
     return cap_val, isyn_val, vdd_val
 
@@ -77,8 +77,30 @@ def calculate_metrics(times, vouts, powers):
 
 
 def parse_value(s):
-    multiplier = {"f": 1e-15, "p": 1e-12, "n": 1e-9, "�": 1e-6, "m": 1e-3, "k": 1e3}
-    number_part = "".join(filter(str.isdigit, s)) or "0"
+    if "." in s:
+        multiplier = {
+            "f": 1e-15,
+            "p": 1e-12,
+            "n": 1e-9,
+            "�": 1e-6,
+            "µ": 1e-6,
+            "m": 1e-3,
+            "k": 1e3,
+        }
+        number_part = "".join(filter(str.isnumeric, s)) or "0"
+        number_part = number_part[0:-1] + "." + number_part[-1]
+        unit = s[-1]
+        return float(number_part) * multiplier.get(unit, 1)
+    multiplier = {
+        "f": 1e-15,
+        "p": 1e-12,
+        "n": 1e-9,
+        "µ": 1e-6,
+        "�": 1e-6,
+        "m": 1e-3,
+        "k": 1e3,
+    }
+    number_part = "".join(filter(str.isnumeric, s)) or "0"
     unit = s[-1]
     return float(number_part) * multiplier.get(unit, 1)
 
@@ -118,8 +140,9 @@ def plot_data(caps, isyns, vdds, freqs, joules_per_spike):
 
     # Remove entries with Capacitance <= 0 if any
     data = data[data["Capacitance"] > 0]
+    print(data["Capacitance"])
     # Unique Vdd values for coloring
-    if False:
+    if True:
         unique_vdds = data["Vdd"].unique()
         fig, axs = plt.subplots(2, 1, figsize=(10, 10))  # 2 rows, 1 column
 
@@ -180,7 +203,6 @@ def plot_data(caps, isyns, vdds, freqs, joules_per_spike):
                 color=colors_vdd[i],
                 label=f"VDD={vdd} V",
             )
-        print(energy_at_max_freq["EnergyPerSpike"])
         axs[1].set_xlabel("Capacitance (fF)")
         axs[1].set_ylabel("Energy Per Spike at Max Frequency (fJ)")
         axs[1].set_title(
@@ -225,56 +247,66 @@ def plot_data(caps, isyns, vdds, freqs, joules_per_spike):
     # plt.tight_layout()
     # plt.show()
 
-    # Assuming 'data' is your pandas DataFrame
-    tolerance = 1e-9
-    print(data)
-    data = data[np.isclose(data["Vdd"], 0.9, atol=tolerance)]
-    # print(data["Capacitance"])
-    # print(data["EnergyPerSpike"].max())
-    # Assuming 'data' is your pandas DataFrame
-    # Assuming 'data' is your pandas DataFrame
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    while True:
 
-    # Normalize color based on energy per spike directly
-    norm = Normalize(
-        vmin=data["EnergyPerSpike"].min(), vmax=data["EnergyPerSpike"].max()
-    )
-    cmap = cm.viridis
+        # Assuming 'data' is your pandas DataFrame
+        print("VDD:")
+        vdd_thing = float(input("vdd: "))
+        tolerance = 1e-9
+        filtered_data = data[np.isclose(data["Vdd"], vdd_thing, atol=tolerance)]
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
 
-    # Apply the normalization and colormap directly to the EnergyPerSpike values for coloring
-    colors = cmap(norm(data["EnergyPerSpike"]))
+        print("Energy Per Spike:")
+        print(filtered_data["EnergyPerSpike"].max())
+        energy = int(input("Divisor: "))
 
-    # Scatter plot
-    sc = ax.scatter(
-        data["ISyn"], data["Capacitance"], data["Frequency"], c=colors, marker="o"
-    )
+        # Normalize color based on energy per spike directly
+        norm = Normalize(
+            vmin=filtered_data["EnergyPerSpike"].min(),
+            vmax=filtered_data["EnergyPerSpike"].max() / energy,
+        )
+        cmap = cm.viridis
 
-    # Set labels with units
-    ax.set_xlabel("Synaptic Current (nA)")
-    ax.set_ylabel("Capacitance (fF)")
-    ax.set_zlabel("Spiking Frequency (MHz)")
-    ax.set_title("Neuron Frequency Response")
+        # Apply the normalization and colormap directly to the EnergyPerSpike values for coloring
+        colors = cmap(norm(filtered_data["EnergyPerSpike"]))
 
-    # Apply formatting for tick labels
-    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f"{int(x*10**9)}"))
-    ax.yaxis.set_major_formatter(
-        ticker.FuncFormatter(lambda y, pos: f"{int(y*10**15)}")
-    )
-    ax.zaxis.set_major_formatter(
-        ticker.FuncFormatter(lambda z, pos: f"{int(z*10**-6)}")
-    )
+        # Scatter plot
+        sc = ax.scatter(
+            filtered_data["ISyn"],
+            filtered_data["Capacitance"],
+            filtered_data["Frequency"],
+            c=colors,
+            marker="o",
+        )
 
-    # Color bar indicating energy per spike, with actual values displayed
-    cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+        # Set labels with units
+        ax.set_xlabel("Synaptic Current (uA)")
+        ax.set_ylabel("Capacitance (fF)")
+        ax.set_zlabel("Spiking Frequency (MHz)")
+        ax.set_title("Neuron Frequency Response")
 
-    # Update color bar to reflect energy in femtojoules
-    cbar.set_label("Energy Per Spike (fJ)")
-    cbar.ax.yaxis.set_major_formatter(
-        ticker.FuncFormatter(lambda x, pos: f"{int(x*10**15)}")
-    )
+        # Apply formatting for tick labels
+        ax.xaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda x, pos: f"{int(x*10**6)}")
+        )
+        ax.yaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda y, pos: f"{int(y*10**15)}")
+        )
+        ax.zaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda z, pos: f"{int(z*10**-6)}")
+        )
 
-    plt.show()
+        # Color bar indicating energy per spike, with actual values displayed
+        cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+
+        # Update color bar to reflect energy in femtojoules
+        cbar.set_label("Energy Per Spike (fJ)")
+        cbar.ax.yaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda x, pos: f"{int(x*10**15)}")
+        )
+
+        plt.show()
 
 
 # file_path = "50f_10u.txt"
